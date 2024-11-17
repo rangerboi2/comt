@@ -1,55 +1,134 @@
 section .bss
-    num1 resb 2                      ; Reserve space for first number
-    num2 resb 2                      ; Reserve space for second number
-    result resb 4                    ; Reserve space for result
+    num1 resb 3
+    num2 resb 3
+    result resb 9
 
 section .data
-    prompt1 db "Enter first hex number: ", 0
-    prompt1_len equ $ - prompt1
-    prompt2 db "Enter second hex number: ", 0
-    prompt2_len equ $ - prompt2
-    newline db 0xA, 0
-    newline_len equ $ - newline
+    prompt1 db "Enter first 8-bit hexadecimal number: ", 0
+    prompt1Len equ $ - prompt1
+
+    prompt2 db "Enter second 8-bit hexadecimal number: ", 0
+    prompt2Len equ $ - prompt2
+
+    output db "Result: ", 0
+    outputLen equ $ - output
 
 section .text
     global _start
 
 _start:
-    ; Prompt for the first number
-    mov rax, 1
-    mov rdi, 1
-    mov rsi, prompt1
-    mov rdx, prompt1_len
+    ; Prompt for the first hexadecimal number
+    mov rax, 1              
+    mov rdi, 1             
+    mov rsi, prompt1      
+    mov rdx, prompt1Len   
     syscall
 
-    ; Read the first number
-    mov rax, 0
-    mov rdi, 0
-    mov rsi, num1
-    mov rdx, 2
+    ; Read the first hexadecimal number (8-bit)
+    mov rax, 0            
+    mov rdi, 0            
+    mov rsi, num1         
+    mov rdx, 3            
     syscall
 
-    ; Prompt for the second number
-    mov rax, 1
-    mov rdi, 1
-    mov rsi, prompt2
-    mov rdx, prompt2_len
+    ; Strip newline character
+    mov byte [num1+2], 0    
+
+    ; Convert first input string to integer
+    lea rsi, [num1]        
+    call hex_to_int        
+    mov r8, rax           
+
+    ; Prompt for the second hexadecimal number
+    mov rax, 1     
+    mov rdi, 1           
+    mov rsi, prompt2    
+    mov rdx, prompt2Len   
     syscall
 
-    ; Read the second number
-    mov rax, 0
-    mov rdi, 0
-    mov rsi, num2
-    mov rdx, 2
+    ; Read the second hexadecimal number (8-bit)
+    mov rax, 0           
+    mov rdi, 0        
+    mov rsi, num2        
+    mov rdx, 3      
     syscall
 
-    ; Multiply using successive addition
-    ; Successive addition logic here
+    ; Strip newline character
+    mov byte [num2+2], 0   
 
-    ; Print the result
-    ; Printing logic here
+    ; Convert second input string to integer
+    lea rsi, [num2]   
+    call hex_to_int 
+    mov r9, rax     
 
-    ; Exit the program
-    mov rax, 60
-    xor rdi, rdi
+    ; Perform multiplication using successive addition
+    xor rax, rax            
+    mov rcx, r9       
+multiply_loop:
+    add rax, r8         
+    dec rcx               
+    jnz multiply_loop    
+
+    ; Convert the result to a hexadecimal string
+    call int_to_hex      
+
+    ; Display the result message
+    mov rax, 1         
+    mov rdi, 1           
+    mov rsi, output      
+    mov rdx, outputLen  
     syscall
+
+    ; Display the result
+    mov rax, 1        
+    mov rdi, 1           
+    mov rsi, result   
+    mov rdx, 8        
+    syscall
+
+    ; Exit program
+    mov rax, 60       
+    xor rdi, rdi       
+    syscall
+
+; Function to convert hex string to integer
+hex_to_int:
+    xor rax, rax         
+    xor rcx, rcx         
+.next_hex_digit:
+    movzx rbx, byte [rsi + rcx]
+    cmp rbx, 0             
+    je .done_hex_conversion 
+    cmp rbx, 10            
+    je .done_hex_conversion 
+    sub rbx, '0'            
+    cmp rbx, 9
+    jbe .store_digit      
+    sub rbx, 7             
+.store_digit:
+    imul rax, rax, 16       
+    add rax, rbx         
+    inc rcx               
+    jmp .next_hex_digit
+.done_hex_conversion:
+    ret
+
+; Function to convert integer to hexadecimal string
+int_to_hex:
+    mov rcx, 16          
+    lea rdi, [result + 8]  
+    mov byte [rdi], 0     
+
+reverse_hex_digits:
+    dec rdi           
+    xor rdx, rdx       
+    div rcx               
+    add dl, '0'         
+    cmp dl, '9'
+    jbe .store_hex_digit   
+    add dl, 'A' - '9' - 1   
+.store_hex_digit:
+    mov [rdi], dl         
+    test rax, rax          
+    jnz reverse_hex_digits  
+    ret
