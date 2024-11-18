@@ -1,0 +1,102 @@
+section .bss
+    str1 resb 128        ; Reserve 128 bytes for the input string
+    len resb 4           ; Reserve 4 bytes for the length of the string
+    rev resb 128         ; Reserve 128 bytes for the reversed string
+    len_str resb 10      ; Reserve space for the length string (max 10 digits)
+
+%macro scall 4
+    mov rax, %1
+    mov rdi, %2
+    mov rsi, %3
+    mov rdx, %4
+    syscall
+%endmacro
+
+section .data
+    prompt db "Enter a string: ", 0xA
+    len_prompt equ $-prompt
+    rev_msg db "Reversed string: ", 0xA
+    rev_msg_len equ $-rev_msg
+    len_msg db "Length of the string: ", 0xA
+    len_msg_len equ $-len_msg
+
+section .text
+    global _start
+
+_start:
+    ; Prompt for input string
+    scall 1, 1, prompt, len_prompt       ; Syscall: write to stdout
+    scall 0, 0, str1, 128                ; Syscall: read input string into 'str1'
+
+    ; Null-terminate the input string
+    xor rax, rax
+    find_null:
+        cmp byte [str1 + rax], 0xA       ; Check for newline character
+        jz null_terminate
+        cmp byte [str1 + rax], 0         ; Check for null terminator
+        jz null_terminate
+        inc rax
+        jmp find_null
+
+    null_terminate:
+        mov byte [str1 + rax], 0         ; Replace newline with null terminator
+
+    ; Find length of the string
+    xor rax, rax
+    find_length:
+        cmp byte [str1 + rax], 0         ; Check for null terminator
+        jz done_length
+        inc rax                          ; Increment length counter
+        jmp find_length
+
+    done_length:
+        mov [len], rax                   ; Store length in 'len'
+
+    ; Convert length to string
+    mov rax, [len]                      ; Load length into rax
+    call int_to_str                     ; Convert integer to string
+
+    ; Print length message
+    scall 1, 1, len_msg, len_msg_len    ; Syscall: write "Length of the string" message
+
+    ; Print length string
+    mov rsi, len_str                   ; Address of the length string
+    scall 1, 1, rsi, rbx                ; Syscall: write length string to stdout
+
+    ; Reverse the string
+    xor rbx, rbx                         ; Index for reversed string
+    dec rax                              ; Set rax to the last valid character (length - 1)
+    reverse_string:
+        js reverse_done                  ; Stop if rax is negative
+        mov dl, byte [str1 + rax]        ; Get character from original string
+        mov byte [rev + rbx], dl         ; Place it in reversed string
+        inc rbx                          ; Move to next position in reversed string
+        dec rax                          ; Move to previous character in original string
+        jmp reverse_string
+
+    reverse_done:
+        mov byte [rev + rbx], 0          ; Null terminate the reversed string
+
+    ; Print the reversed string message
+    scall 1, 1, rev_msg, rev_msg_len     ; Syscall: write "Reversed string" message
+
+    ; Print the reversed string
+    scall 1, 1, rev, rbx                 ; Syscall: write reversed string to stdout
+
+    ; Exit program
+    scall 60, 0, 0, 0                    ; Syscall: exit
+
+; Function to convert an integer to string (to print the length)
+int_to_str:
+    mov rbx, 10             ; Divisor for converting to string
+    xor rcx, rcx            ; Clear rcx (index for len_str)
+convert_int_loop:
+    xor rdx, rdx            ; Clear rdx
+    div rbx                 ; Divide rax by 10, quotient in rax, remainder in rdx
+    add dl, '0'             ; Convert remainder to ASCII
+    mov [len_str + rcx], dl ; Store the character in the length string
+    inc rcx                 ; Increment index
+    test rax, rax           ; Check if quotient is zero
+    jnz convert_int_loop
+    mov byte [len_str + rcx], 0 ; Null terminate the length string
+    ret

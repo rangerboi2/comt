@@ -1,0 +1,46 @@
+section .bss
+    num resb 20          ; 
+
+section .data
+    prompt db 'Enter a number: ', 0
+    promptLen equ $ - prompt
+
+    output db 'You entered: ', 0
+    outputLen equ $ - output
+
+section .text
+    global _start
+
+_start:
+    ; Display prompt
+    mov rax, 1           ; 
+    mov rdi, 1           ; 
+    mov rsi, prompt
+    mov rdx, promptLen
+    syscall
+
+    ; Read input
+    mov rax, 0           ; 
+    mov rdi, 0           ; 
+    mov rsi, num
+    mov rdx, 20
+    syscall
+
+    ; Display output
+    mov rax, 1           ; 
+    mov rdi, 1           ; 
+    mov rsi, output
+    mov rdx, outputLen
+    syscall
+
+    ; Write input back
+    mov rax, 1           ; 
+    mov rdi, 1           ; 
+    mov rsi, num
+    mov rdx, 20
+    syscall
+
+    ; Exit
+    mov rax, 60          ; 
+    xor rdi, rdi
+    syscall

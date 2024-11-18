@@ -1,0 +1,119 @@
+section .bss
+    num1    resb 5
+    num2    resb 5
+    result  resb 20
+
+section .data
+    msg1        db 'Enter first number: ', 0
+    msg2        db 'Enter second number: ', 0
+    msg_result  db 'Result: ', 0
+    newline     db 0xA
+    ten         dq 10
+    
+%macro scall 4
+    mov rax, %1
+    mov rdi, %2
+    mov rsi, %3
+    mov rdx, %4
+    syscall
+%endmacro
+
+
+section .text
+    global _start
+
+_start:
+    
+    scall 1,1,msg1,19
+  
+    scall 0,0,num1,5
+    
+    
+
+    call str_to_int
+    mov rbx, rax
+
+    
+    
+    scall 1,1,msg2,20
+
+   
+    scall 0,0,num2,5
+    
+    
+
+    call str_to_int
+    mov rcx, rax
+
+    xor rdx, rdx
+
+multiply:
+    cmp rcx, 0
+    je done
+    add rdx, rbx
+    dec rcx
+    jmp multiply
+
+done:
+    mov rax, rdx
+    call int_to_str
+
+    
+    
+    scall 1,1,msg_result,8
+ 
+    scall 1,1,result,20
+
+    scall 1,1,newline,1
+    
+    mov rax, 60
+    xor rdi, rdi
+    syscall
+
+str_to_int:
+    xor rax, rax
+    xor rdi, rdi
+
+next_digit:
+    mov dl, [rsi + rdi]
+    cmp dl, 0xA
+    je done_conv
+    sub dl, '0'
+    imul rax, rax, 10
+    add rax, rdx
+    inc rdi
+    jmp next_digit
+
+done_conv:
+    ret
+
+int_to_str:
+    mov rbx, 0
+    mov rdi, result + 19
+    mov byte [rdi], 0
+    dec rdi
+
+    test rax, rax
+    jz int_zero
+
+int_loop:
+    xor rdx, rdx
+    div qword [ten]
+    add dl, '0'
+    mov [rdi], dl
+    dec rdi
+    inc rbx
+    test rax, rax
+    jnz int_loop
+
+jmp int_done
+
+int_zero:
+    mov byte [rdi], '0'
+    dec rdi
+    inc rbx
+
+int_done:
+    mov rsi, rdi
+    inc rsi
+    ret
